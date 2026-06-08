@@ -5,8 +5,8 @@ import {
   CandlestickSeries,
   HistogramSeries,
   LineSeries,
-  type IChartApi, 
-  type ISeriesApi 
+  createSeriesMarkers,
+  type IChartApi
 } from 'lightweight-charts';
 import type { KlineData } from '../services/binanceApi';
 import type { IndicatorSeriesData, MACDResult, TrendlineResult, RegressionChannelResult } from '../utils/indicatorUtils';
@@ -42,7 +42,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRefs = useRef<Record<string, ISeriesApi<any>>>({});
+  const seriesRefs = useRef<Record<string, any>>({});
   const [markerError, setMarkerError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -315,7 +315,11 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     seriesRefs.current.candles.setData(formattedData);
     try {
-      (seriesRefs.current.candles as any).setMarkers(uniqueMarkers);
+      if (!seriesRefs.current.markersPlugin) {
+        seriesRefs.current.markersPlugin = createSeriesMarkers(seriesRefs.current.candles, uniqueMarkers);
+      } else {
+        seriesRefs.current.markersPlugin.setMarkers(uniqueMarkers);
+      }
       setMarkerError(null);
     } catch (e: any) {
       console.error("Error setting markers:", e);
