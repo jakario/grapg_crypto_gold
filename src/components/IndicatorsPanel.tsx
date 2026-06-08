@@ -18,8 +18,8 @@ interface IndicatorsPanelProps {
 
 export const IndicatorsPanel: React.FC<IndicatorsPanelProps> = ({ config, onChange }) => {
   const toggleIndicator = (key: keyof IndicatorConfig) => {
-    if (key === 'actionZone') {
-      onChange({ ...config, actionZone: !config.actionZone });
+    if (key === 'actionZone' || key === 'autoTrendline' || key === 'regressionTrend') {
+      onChange({ ...config, [key]: !config[key] });
     } else {
       onChange({
         ...config,
