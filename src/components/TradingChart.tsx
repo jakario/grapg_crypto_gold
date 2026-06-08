@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   createChart, 
   ColorType, 
@@ -43,6 +43,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRefs = useRef<Record<string, ISeriesApi<any>>>({});
+  const [markerError, setMarkerError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -315,8 +316,10 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     seriesRefs.current.candles.setData(formattedData);
     try {
       (seriesRefs.current.candles as any).setMarkers(uniqueMarkers);
-    } catch (e) {
+      setMarkerError(null);
+    } catch (e: any) {
       console.error("Error setting markers:", e);
+      setMarkerError(e.message || String(e));
     }
     seriesRefs.current.volume.setData(volumeData);
 
@@ -406,6 +409,11 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         <div className="loading-overlay">
           <div className="spinner"></div>
           <div>Loading Market Data...</div>
+        </div>
+      )}
+      {markerError && (
+        <div style={{ position: 'absolute', top: 60, left: 20, zIndex: 1000, background: 'rgba(239, 68, 68, 0.9)', color: 'white', padding: '10px', borderRadius: '4px', fontSize: '12px', maxWidth: '400px' }}>
+          <strong>Marker Error:</strong> {markerError}
         </div>
       )}
       <div className="chart-header">
