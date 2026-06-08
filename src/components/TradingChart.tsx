@@ -212,64 +212,72 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     const ema12Map = new Map(ema12Data?.map(d => [d.time, d.value]) || []);
     const ema26Map = new Map(ema26Data?.map(d => [d.time, d.value]) || []);
+    const rsiMap = new Map(rsiData?.map(d => [d.time, d.value]) || []);
+    const macdLineMap = new Map(macdData?.macdLine.map(d => [d.time, d.value]) || []);
+    const signalLineMap = new Map(macdData?.signalLine.map(d => [d.time, d.value]) || []);
 
     const markers: any[] = [];
     let prevColorType: 'none' | 'green' | 'blue' | 'red' | 'orange' = 'none';
+    let prevMacdDiff = 0;
+    let prevRsi = 50;
 
     // Map Kline to Candlestick format with CDC Action Zone colors and markers
-    const formattedData = data.map(d => {
+    const formattedData = data.map((d, index) => {
       let candleColor = undefined;
       let wickColor = undefined;
       let currentColorType: 'none' | 'green' | 'blue' | 'red' | 'orange' = 'none';
       
+      // 1. CDC Action Zone
       if (actionZoneActive && ema12Map.has(d.time as number) && ema26Map.has(d.time as number)) {
         const ema12 = ema12Map.get(d.time as number)!;
         const ema26 = ema26Map.get(d.time as number)!;
         const close = d.close;
 
         if (ema12 > ema26 && close > ema12) {
-          candleColor = '#10b981'; // Green (Bullish)
-          wickColor = '#10b981';
-          currentColorType = 'green';
+          candleColor = '#10b981'; wickColor = '#10b981'; currentColorType = 'green';
         } else if (ema12 > ema26 && close <= ema12) {
-          candleColor = '#3b82f6'; // Blue (Take Profit / Hold)
-          wickColor = '#3b82f6';
-          currentColorType = 'blue';
+          candleColor = '#3b82f6'; wickColor = '#3b82f6'; currentColorType = 'blue';
         } else if (ema12 < ema26 && close < ema12) {
-          candleColor = '#ef4444'; // Red (Bearish)
-          wickColor = '#ef4444';
-          currentColorType = 'red';
+          candleColor = '#ef4444'; wickColor = '#ef4444'; currentColorType = 'red';
         } else if (ema12 < ema26 && close >= ema12) {
-          candleColor = '#f59e0b'; // Orange (Rebound)
-          wickColor = '#f59e0b';
-          currentColorType = 'orange';
+          candleColor = '#f59e0b'; wickColor = '#f59e0b'; currentColorType = 'orange';
         }
 
-        // Logic for Buy / Sell Markers
-        // We only place a marker if the trend definitively changed color.
         if (currentColorType === 'green' && prevColorType !== 'green' && prevColorType !== 'none') {
-          markers.push({
-            time: d.time as any,
-            position: 'belowBar',
-            color: '#10b981',
-            shape: 'arrowUp',
-            text: 'BUY',
-            size: 2
-          });
+          markers.push({ time: d.time as any, position: 'belowBar', color: '#10b981', shape: 'arrowUp', text: 'CDC BUY', size: 2 });
         } else if (currentColorType === 'red' && prevColorType !== 'red' && prevColorType !== 'none') {
-          markers.push({
-            time: d.time as any,
-            position: 'aboveBar',
-            color: '#ef4444',
-            shape: 'arrowDown',
-            text: 'SELL',
-            size: 2
-          });
+          markers.push({ time: d.time as any, position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'CDC SELL', size: 2 });
+        }
+        
+        if (currentColorType !== 'none') {
+          prevColorType = currentColorType;
         }
       }
 
-      if (currentColorType !== 'none') {
-        prevColorType = currentColorType;
+      // 2. MACD Signals
+      if (macdData && macdLineMap.has(d.time as number) && signalLineMap.has(d.time as number)) {
+        const macd = macdLineMap.get(d.time as number)!;
+        const signal = signalLineMap.get(d.time as number)!;
+        const diff = macd - signal;
+
+        if (index > 0 && prevMacdDiff < 0 && diff >= 0) {
+          markers.push({ time: d.time as any, position: 'belowBar', color: '#ec4899', shape: 'circle', text: 'MACD Buy' });
+        } else if (index > 0 && prevMacdDiff > 0 && diff <= 0) {
+          markers.push({ time: d.time as any, position: 'aboveBar', color: '#ec4899', shape: 'circle', text: 'MACD Sell' });
+        }
+        prevMacdDiff = diff;
+      }
+
+      // 3. RSI Signals
+      if (rsiData && rsiMap.has(d.time as number)) {
+        const rsi = rsiMap.get(d.time as number)!;
+        
+        if (index > 0 && prevRsi <= 30 && rsi > 30) {
+          markers.push({ time: d.time as any, position: 'belowBar', color: '#06b6d4', shape: 'arrowUp', text: 'RSI Buy' });
+        } else if (index > 0 && prevRsi >= 70 && rsi < 70) {
+          markers.push({ time: d.time as any, position: 'aboveBar', color: '#06b6d4', shape: 'arrowDown', text: 'RSI Sell' });
+        }
+        prevRsi = rsi;
       }
 
       return {
@@ -281,6 +289,9 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         ...(candleColor ? { color: candleColor, wickColor: wickColor } : {})
       };
     });
+
+    // Sort markers by time
+    markers.sort((a, b) => (a.time as number) - (b.time as number));
     
     const volumeData = data.map(d => ({
       time: d.time as any,
