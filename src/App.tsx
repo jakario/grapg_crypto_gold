@@ -28,9 +28,14 @@ function App() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      const klines = await fetchHistoricalData(symbol, intervalTime, 1000);
-      setData(klines);
-      setIsLoading(false);
+      try {
+        const klines = await fetchHistoricalData(symbol, intervalTime, 1000);
+        setData(klines);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     
     loadData();

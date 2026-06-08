@@ -295,8 +295,8 @@ export const calculateStrategyPerformance = (
   const ema12Map = new Map(ema12Data?.map(d => [d.time, d.value]) || []);
   const ema26Map = new Map(ema26Data?.map(d => [d.time, d.value]) || []);
   const rsiMap = new Map(rsiData?.map(d => [d.time, d.value]) || []);
-  const macdLineMap = new Map(macdData?.macdLine.map(d => [d.time, d.value]) || []);
-  const signalLineMap = new Map(macdData?.signalLine.map(d => [d.time, d.value]) || []);
+  const macdLineMap = new Map(macdData?.macdLine?.map(d => [d.time, d.value]) || []);
+  const signalLineMap = new Map(macdData?.signalLine?.map(d => [d.time, d.value]) || []);
 
   const closeTrade = (exitPrice: number) => {
     if (currentEntryPrice !== null) {
