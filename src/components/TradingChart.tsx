@@ -50,6 +50,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     // Create chart instance
     const chart = createChart(chartContainerRef.current, {
+      autoSize: true,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: '#94a3b8',
@@ -192,17 +193,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     seriesRefs.current.signalLine = signalLine as any;
     seriesRefs.current.macdHistogram = macdHistogram as any;
 
-    const handleResize = () => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    handleResize();
-
     return () => {
-      window.removeEventListener('resize', handleResize);
       chart.remove();
     };
   }, []);
