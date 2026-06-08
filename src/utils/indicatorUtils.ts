@@ -265,3 +265,117 @@ export const calculateLinearRegressionChannel = (data: KlineData[], devMultiplie
 
   return result;
 };
+
+export interface TradePerformance {
+  totalTrades: number;
+  winRate: number; // percentage
+  totalRealizedPnlPercent: number; // percentage
+  unrealizedPnlPercent: number | null; // currently held trade
+  lastEntryPrice: number | null;
+  lastExitPrice: number | null;
+}
+
+export const calculateStrategyPerformance = (
+  data: KlineData[],
+  strategyName: 'cdc' | 'macd' | 'rsi',
+  ema12Data: IndicatorSeriesData[] | null,
+  ema26Data: IndicatorSeriesData[] | null,
+  macdData: MACDResult | null,
+  rsiData: IndicatorSeriesData[] | null
+): TradePerformance => {
+  let trades = 0;
+  let winningTrades = 0;
+  let totalPnl = 0;
+  let currentEntryPrice: number | null = null;
+  
+  let prevCdcTrend: 'bull' | 'bear' | 'none' = 'none';
+  let prevMacdDiff = 0;
+  let prevRsi = 50;
+
+  const ema12Map = new Map(ema12Data?.map(d => [d.time, d.value]) || []);
+  const ema26Map = new Map(ema26Data?.map(d => [d.time, d.value]) || []);
+  const rsiMap = new Map(rsiData?.map(d => [d.time, d.value]) || []);
+  const macdLineMap = new Map(macdData?.macdLine.map(d => [d.time, d.value]) || []);
+  const signalLineMap = new Map(macdData?.signalLine.map(d => [d.time, d.value]) || []);
+
+  const closeTrade = (exitPrice: number) => {
+    if (currentEntryPrice !== null) {
+      trades++;
+      const pnl = ((exitPrice - currentEntryPrice) / currentEntryPrice) * 100;
+      totalPnl += pnl;
+      if (pnl > 0) winningTrades++;
+      currentEntryPrice = null;
+    }
+  };
+
+  const openTrade = (entryPrice: number) => {
+    if (currentEntryPrice === null) {
+      currentEntryPrice = entryPrice;
+    }
+  };
+
+  for (let i = 0; i < data.length; i++) {
+    const d = data[i];
+    
+    if (strategyName === 'cdc' && ema12Map.has(d.time as number) && ema26Map.has(d.time as number)) {
+      const ema12 = ema12Map.get(d.time as number)!;
+      const ema26 = ema26Map.get(d.time as number)!;
+
+      let currentCdcTrend: 'bull' | 'bear' | 'none' = 'none';
+      if (ema12 > ema26) currentCdcTrend = 'bull';
+      else if (ema12 < ema26) currentCdcTrend = 'bear';
+
+      if (currentCdcTrend === 'bull' && prevCdcTrend === 'bear') {
+        closeTrade(d.close); // Close any existing short (we only do long entries for now)
+        openTrade(d.close);
+      } else if (currentCdcTrend === 'bear' && prevCdcTrend === 'bull') {
+        closeTrade(d.close);
+      }
+      
+      if (prevCdcTrend === 'none' && currentCdcTrend !== 'none') {
+        prevCdcTrend = currentCdcTrend;
+      } else if (currentCdcTrend !== 'none') {
+        prevCdcTrend = currentCdcTrend;
+      }
+    } 
+    else if (strategyName === 'macd' && macdData && macdLineMap.has(d.time as number) && signalLineMap.has(d.time as number)) {
+      const macd = macdLineMap.get(d.time as number)!;
+      const signal = signalLineMap.get(d.time as number)!;
+      const diff = macd - signal;
+
+      if (i > 0 && prevMacdDiff < 0 && diff >= 0) {
+        closeTrade(d.close);
+        openTrade(d.close);
+      } else if (i > 0 && prevMacdDiff > 0 && diff <= 0) {
+        closeTrade(d.close);
+      }
+      prevMacdDiff = diff;
+    }
+    else if (strategyName === 'rsi' && rsiData && rsiMap.has(d.time as number)) {
+      const rsi = rsiMap.get(d.time as number)!;
+      
+      if (i > 0 && prevRsi <= 30 && rsi > 30) {
+        closeTrade(d.close);
+        openTrade(d.close);
+      } else if (i > 0 && prevRsi >= 70 && rsi < 70) {
+        closeTrade(d.close);
+      }
+      prevRsi = rsi;
+    }
+  }
+
+  let unrealizedPnlPercent = null;
+  const currentPrice = data.length > 0 ? data[data.length - 1].close : 0;
+  if (currentEntryPrice !== null && currentPrice > 0) {
+    unrealizedPnlPercent = ((currentPrice - currentEntryPrice) / currentEntryPrice) * 100;
+  }
+
+  return {
+    totalTrades: trades,
+    winRate: trades > 0 ? (winningTrades / trades) * 100 : 0,
+    totalRealizedPnlPercent: totalPnl,
+    unrealizedPnlPercent: unrealizedPnlPercent,
+    lastEntryPrice: currentEntryPrice,
+    lastExitPrice: null
+  };
+};

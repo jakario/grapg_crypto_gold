@@ -5,7 +5,8 @@ import { IndicatorsPanel } from './components/IndicatorsPanel';
 import type { IndicatorConfig } from './components/IndicatorsPanel';
 import { fetchHistoricalData } from './services/binanceApi';
 import type { KlineData } from './services/binanceApi';
-import { calculateSMA, calculateEMA, calculateRSI, calculateMACD, calculateTrendlines, calculateLinearRegressionChannel } from './utils/indicatorUtils';
+import { calculateSMA, calculateEMA, calculateRSI, calculateMACD, calculateTrendlines, calculateLinearRegressionChannel, calculateStrategyPerformance } from './utils/indicatorUtils';
+import { PerformancePanel } from './components/PerformancePanel';
 
 function App() {
   const [data, setData] = useState<KlineData[]>([]);
@@ -85,6 +86,25 @@ function App() {
     if (!indicatorConfig.regressionTrend || data.length === 0) return null;
     return calculateLinearRegressionChannel(data, 2);
   }, [data, indicatorConfig.regressionTrend]);
+
+  const activeStrategy = useMemo(() => {
+    if (indicatorConfig.actionZone) return 'cdc';
+    if (indicatorConfig.macd.active) return 'macd';
+    if (indicatorConfig.rsi.active) return 'rsi';
+    return null;
+  }, [indicatorConfig]);
+
+  const strategyPerformance = useMemo(() => {
+    if (!activeStrategy || data.length === 0) return null;
+    return calculateStrategyPerformance(
+      data,
+      activeStrategy,
+      ema12Data,
+      ema26Data,
+      macdData,
+      rsiData
+    );
+  }, [data, activeStrategy, ema12Data, ema26Data, macdData, rsiData]);
 
   // Effect to persistently show CDC Action Zone status
   useEffect(() => {
@@ -167,29 +187,34 @@ function App() {
           onChange={setIndicatorConfig} 
         />
         
-        <TradingChart 
-          data={data}
-          smaData={smaData}
-          emaData={emaData}
-          rsiData={rsiData}
-          macdData={macdData}
-          actionZoneActive={indicatorConfig.actionZone}
-          ema12Data={ema12Data}
-          ema26Data={ema26Data}
-          trendlineData={trendlineData}
-          regressionData={regressionData}
-          isLoading={isLoading}
-          symbol={symbol}
-        />
-      </main>
-
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div className={`toast-notification glass-panel ${toastMsg.type}`}>
-          <div className="toast-title">{toastMsg.title}</div>
-          <div className="toast-message">{toastMsg.message}</div>
+        <div className="chart-wrapper">
+          <TradingChart 
+            data={data} 
+            isLoading={isLoading} 
+            symbol={symbol}
+            actionZoneActive={indicatorConfig.actionZone}
+            smaData={smaData}
+            emaData={emaData}
+            rsiData={rsiData}
+            macdData={macdData}
+            ema12Data={ema12Data}
+            ema26Data={ema26Data}
+            trendlineData={trendlineData}
+            regressionData={regressionData}
+          />
+          {toastMsg && (
+            <div className={`toast-notification glass-panel ${toastMsg.type}`}>
+              <div className="toast-title">{toastMsg.title}</div>
+              <div className="toast-message">{toastMsg.message}</div>
+            </div>
+          )}
+          <PerformancePanel 
+            performance={strategyPerformance} 
+            strategyName={activeStrategy === 'cdc' ? 'CDC Action Zone' : activeStrategy === 'macd' ? 'MACD' : 'RSI'} 
+            isActive={!!activeStrategy} 
+          />
         </div>
-      )}
+      </main>
     </div>
   );
 }
