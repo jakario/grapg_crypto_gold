@@ -293,6 +293,19 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     // Sort markers by time
     markers.sort((a, b) => (a.time as number) - (b.time as number));
     
+    // Deduplicate markers by time (Lightweight Charts throws error if multiple markers have the EXACT same time)
+    const uniqueMarkers: any[] = [];
+    let lastTime = 0;
+    for (const m of markers) {
+      if (m.time !== lastTime) {
+        uniqueMarkers.push(m);
+        lastTime = m.time;
+      } else {
+        // If same time, merge text and keep the first marker's visual
+        uniqueMarkers[uniqueMarkers.length - 1].text += ` & ${m.text}`;
+      }
+    }
+    
     const volumeData = data.map(d => ({
       time: d.time as any,
       value: d.volume,
@@ -301,7 +314,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
 
     seriesRefs.current.candles.setData(formattedData);
     try {
-      (seriesRefs.current.candles as any).setMarkers(markers);
+      (seriesRefs.current.candles as any).setMarkers(uniqueMarkers);
     } catch (e) {
       console.error("Error setting markers:", e);
     }
