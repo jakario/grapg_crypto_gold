@@ -218,7 +218,7 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     const signalLineMap = new Map(macdData?.signalLine.map(d => [d.time, d.value]) || []);
 
     const markers: any[] = [];
-    let prevColorType: 'none' | 'green' | 'blue' | 'red' | 'orange' = 'none';
+    let prevCdcTrend: 'bull' | 'bear' | 'none' = 'none';
     let prevMacdDiff = 0;
     let prevRsi = 50;
 
@@ -226,8 +226,6 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     const formattedData = data.map((d, index) => {
       let candleColor = undefined;
       let wickColor = undefined;
-      let currentColorType: 'none' | 'green' | 'blue' | 'red' | 'orange' = 'none';
-      
       // 1. CDC Action Zone
       if (actionZoneActive && ema12Map.has(d.time as number) && ema26Map.has(d.time as number)) {
         const ema12 = ema12Map.get(d.time as number)!;
@@ -235,23 +233,29 @@ export const TradingChart: React.FC<TradingChartProps> = ({
         const close = d.close;
 
         if (ema12 > ema26 && close > ema12) {
-          candleColor = '#10b981'; wickColor = '#10b981'; currentColorType = 'green';
+          candleColor = '#10b981'; wickColor = '#10b981';
         } else if (ema12 > ema26 && close <= ema12) {
-          candleColor = '#3b82f6'; wickColor = '#3b82f6'; currentColorType = 'blue';
+          candleColor = '#3b82f6'; wickColor = '#3b82f6';
         } else if (ema12 < ema26 && close < ema12) {
-          candleColor = '#ef4444'; wickColor = '#ef4444'; currentColorType = 'red';
+          candleColor = '#ef4444'; wickColor = '#ef4444';
         } else if (ema12 < ema26 && close >= ema12) {
-          candleColor = '#f59e0b'; wickColor = '#f59e0b'; currentColorType = 'orange';
+          candleColor = '#f59e0b'; wickColor = '#f59e0b';
         }
 
-        if (currentColorType === 'green' && prevColorType !== 'green' && prevColorType !== 'none') {
+        let currentCdcTrend: 'bull' | 'bear' | 'none' = 'none';
+        if (ema12 > ema26) currentCdcTrend = 'bull';
+        else if (ema12 < ema26) currentCdcTrend = 'bear';
+
+        if (currentCdcTrend === 'bull' && prevCdcTrend === 'bear') {
           markers.push({ time: d.time as any, position: 'belowBar', color: '#10b981', shape: 'arrowUp', text: 'CDC BUY', size: 2 });
-        } else if (currentColorType === 'red' && prevColorType !== 'red' && prevColorType !== 'none') {
+        } else if (currentCdcTrend === 'bear' && prevCdcTrend === 'bull') {
           markers.push({ time: d.time as any, position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'CDC SELL', size: 2 });
         }
         
-        if (currentColorType !== 'none') {
-          prevColorType = currentColorType;
+        if (prevCdcTrend === 'none' && currentCdcTrend !== 'none') {
+          prevCdcTrend = currentCdcTrend; // Initialize without placing marker on first candle
+        } else if (currentCdcTrend !== 'none') {
+          prevCdcTrend = currentCdcTrend;
         }
       }
 

@@ -135,7 +135,7 @@ function App() {
       <header className="app-header glass-panel">
         <div className="logo-section">
           <Activity size={32} className="logo-icon" />
-          <div className="logo-text">AetherX Trading</div>
+          <div className="logo-text">ชาวดอย Trading</div>
         </div>
         
         <div className="timeframe-selector">
